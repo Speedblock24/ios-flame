@@ -34,6 +34,20 @@ the difference is **not known**. A freeze fits "our code ran", but a loader that
 the same. **Next:** control (restored recovery + `reboot recovery` should open it), then tabs6/probe/out/Image-delay20 (waits
 20 s, then resets): a timed reboot to Android means our code ran, a freeze that never ends does not.
 
+**Update (2026-11-15, 13:50): timed variant.** Image-delay20 (reset after 20 s) on the recovery.img layout, flashed as a
+plain `.tar`; control first: with the original recovery restored, `reboot recovery` opened it normally. Then
+`reboot recovery` with the probe in the slot: first Samsung screen (about 10-20 s after the command), black at
+about 40 s after the command, reboot, and the same again in a **loop**. A forced restart does not leave the loop
+(seen earlier with the hang image). Left through Download mode by flashing recovery-restore.tar; Android back.
+- **Read as:** the reset at roughly 20 s after the Samsung screen fits our code running and counting 20 s; the hang
+  image sat frozen for minutes with no reset, so it is not the loader's own watchdog. Not measured with a stopwatch.
+- **Guess (untested):** the loop comes from a "boot recovery" request that survives resets (probably a BCB command in
+  `misc`, which the real recovery clears when it exits); a key-combo start would not set it. Not checked: `misc`
+  was not read, and the report in ramoops was not read (the later boots overwrite it; this kernel's dmesg showed no ramoops).
+- **Next:** a start that does not set the sticky request (key combo, timing practised on the restored recovery
+  first), so the probe resets once into Android and /sys/fs/pstore can be read. If ramoops is not alive in this
+  kernel, the readback needs another channel (the display through SDE, USB, or a UFS rescue area as flame does).
+
 ### WiFi IN SETTINGS: wifid, en0, iOS's own DHCP (2026-10-22, 11:15) - kernels 0123/0124
 Settings -> Wi-Fi: switch on, the home network ticked, nearby networks listed (from a
 background scan while joined), Wi-Fi icon in the status bar; configd's DHCP on **en0** is the primary
