@@ -82,6 +82,14 @@ static void write_all(void)
 	}
 }
 
+#ifdef PROBE_HANG
+/* Hang variant: no readback needed. If this runs, the tablet freezes instead of booting Android. */
+static void reset(void)
+{
+	for (;;)
+		__asm__ volatile("wfe");
+}
+#else
 static void delay_s(u64 s)
 {
 	u64 f = RD(cntfrq_el0);
@@ -105,6 +113,7 @@ static void reset(void)
 	for (;;)
 		__asm__ volatile("wfe");
 }
+#endif
 
 /* ---- tiny FDT reader ---- */
 static u32 be32(const u8 *p)

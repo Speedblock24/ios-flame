@@ -50,3 +50,21 @@ To put TWRP back, flash `recovery-restore.tar.md5` the same way.
 - Only `stage=early alive`: it ran but died between the first and second write.
 - Empty pstore and a normal boot: the loader rejected the image, or the reset was cold and DRAM
   did not survive, or Samsung cleared the zone. These look the same, so it is not proof of rejection.
+
+## First result and the hang variant
+
+The reset variant (`out/Image`) was flashed and verified (partition hash matched), and the tablet
+booted Android with an empty `/sys/fs/pstore`. That does not show whether the probe ran:
+`dmesg` had no ramoops/pstore lines, so this Samsung kernel may not use the ramoops region
+at all, and the readback channel may not exist.
+
+`out/Image-hang` needs no readback. It writes the same report and then spins instead of
+resetting. Package it the same way (`--image out/Image-hang`, output `recovery-probe-hang.img`).
+After flashing, boot to recovery with the key combo:
+
+- Frozen on the Samsung logo or a black screen for more than ~30 seconds: our code ran.
+  Hold Power + Volume Down about 7 seconds to restart.
+- Android boots as usual: the loader did not run the image (rejected, or the key combo missed).
+
+If the apps watchdog was left armed by the loader, a hang can still end in a reset after a
+while, so note roughly how long it stayed frozen.

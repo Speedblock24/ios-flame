@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build the Tab S6 stage-0 probe: out/Image (raw arm64 Image, linked at 0).
+# Build the Tab S6 stage-0 probe: out/Image (reset variant) and out/Image-hang (hang variant).
 # Needs clang + ld.lld + llvm-objcopy (+ llvm-readelf/llvm-nm for the checks).
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -8,17 +8,29 @@ CFLAGS="-O2 -ffreestanding -nostdlib -fno-builtin -fno-pic -fno-pie -mgeneral-re
 	-fno-stack-protector -fno-asynchronous-unwind-tables -Wall -Wextra"
 mkdir -p out
 $CC $CFLAGS -c start.S -o out/start.o
-$CC $CFLAGS -c probe.c -o out/probe.o
-# Only start.o may carry an absolute relocation (image_size, linked at 0).
-abs=$(llvm-readelf -r out/probe.o | grep -c R_AARCH64_ABS64 || true)
-[ "$abs" = 0 ] || { echo "error: $abs absolute relocations in probe.o" >&2; exit 1; }
-ld.lld -static -nostdlib -T probe.ld --build-id=none -N out/start.o out/probe.o -o out/probe.elf
-llvm-objcopy -O binary out/probe.elf out/Image
-# Pad to the full image size so .bss/stack exist as zero bytes in the file.
-size=$(llvm-nm out/probe.elf | awk '$3=="_end"{print $1}')
-truncate -s $((16#$size)) out/Image
-sz=$(stat -c %s out/Image)
-[ $((sz % 4)) = 0 ] || { echo "error: Image size $sz is not 4-byte aligned" >&2; exit 1; }
-[ "$(od -An -tx1 -j56 -N4 out/Image | tr -d ' ')" = 41524d64 ] || { echo "error: arm64 magic missing" >&2; exit 1; }
-ls -l out/Image
-sha256sum out/Image
+
+# build NAME EXTRA_CFLAGS
+build() {
+	local name=$1 extra=$2
+	$CC $CFLAGS $extra -c probe.c -o out/$name.o
+	# Only start.o may carry an absolute relocation (image_size, linked at 0).
+	local abs
+	abs=$(llvm-readelf -r out/$name.o | grep -c R_AARCH64_ABS64 || true)
+	[ "$abs" = 0 ] || { echo "error: $abs absolute relocations in $name.o" >&2; exit 1; }
+	ld.lld -static -nostdlib -T probe.ld --build-id=none -N out/start.o out/$name.o -o out/$name.elf
+	local img=out/$3
+	llvm-objcopy -O binary out/$name.elf $img
+	# Pad to the full image size so .bss/stack exist as zero bytes in the file.
+	local size
+	size=$(llvm-nm out/$name.elf | awk '$3=="_end"{print $1}')
+	truncate -s $((16#$size)) $img
+	local sz
+	sz=$(stat -c %s $img)
+	[ $((sz % 4)) = 0 ] || { echo "error: $img size $sz is not 4-byte aligned" >&2; exit 1; }
+	[ "$(od -An -tx1 -j56 -N4 $img | tr -d ' ')" = 41524d64 ] || { echo "error: arm64 magic missing in $img" >&2; exit 1; }
+	ls -l $img
+	sha256sum $img
+}
+
+build probe "" Image
+build probe-hang "-DPROBE_HANG" Image-hang
