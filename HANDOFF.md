@@ -5,6 +5,25 @@ test loop, bootloader rules) and `docs/ios-sweet/NOTES.md` (history of every ker
 
 ## Start here (next session)
 
+### Tab S6 (SM-T860, branch `tabs6`): probe images do not start from the `recovery` slot (2026-11-14, 21:30)
+Details of the hardware are in TABS6.md, the tooling in tabs6/probe/. **Observed:**
+- Odin 3.14.4 rejected the `.tar.md5` made by odin_tar.py ("md5 error! Binary is invalid", cause unknown); a
+  plain `.tar` (member `recovery.img`) is accepted and flashes with PASS. `sha256sum` of the partition after
+  the flash equals the image's hash.
+- Two probe images (reset variant: report to ramoops then watchdog reset; hang variant: spin forever),
+  both built on the stock **boot.img** layout, both flashed to `recovery` and started with Power + Volume Up
+  after leaving Download mode: the tablet booted Android both times, the hang variant did not freeze,
+  `/sys/fs/pstore` stayed empty, `androidboot.boot_recovery=0`, and `dmesg` shows no ramoops lines at all.
+- The `recovery.img` that was on the tablet (a custom recovery, not Samsung's): board `FRPSC27A001`, header v1,
+  ramdisk addr 0x1000000, tags 0x100, **recovery_dtbo 1,013,353 bytes**, no SEANDROIDENFORCE marker, kernel blob =
+  UNCOMPRESSED_IMG wrapper + arm64 Image + 4 DTBs (no 173-byte trailer), AVB footer present but stale.
+  The probe images had board `SRPSD11A005`, ramdisk 0x0, tags 0x01e00000, no recovery_dtbo, the marker, a trailer.
+**Guess (untested):** the loader needs the image's `recovery_dtbo` (or its header layout / board name) to start
+a recovery image, so it fell back to Android. It is also possible the key combo was not reaching recovery.
+**Next:** build from the accepted recovery.img layout (repack.py keeps its header and recovery_dtbo and swaps only
+the Image), flash the hang variant, and see whether the tablet freezes. Control: restore the original recovery
+and check the same key sequence boots it.
+
 ### WiFi IN SETTINGS: wifid, en0, iOS's own DHCP (2026-10-22, 11:15) - kernels 0123/0124
 Settings -> Wi-Fi: switch on, the home network ticked, nearby networks listed (from a
 background scan while joined), Wi-Fi icon in the status bar; configd's DHCP on **en0** is the primary

@@ -68,3 +68,11 @@ After flashing, boot to recovery with the key combo:
 
 If the apps watchdog was left armed by the loader, a hang can still end in a reset after a
 while, so note roughly how long it stayed frozen.
+
+## Second result: base the image on the recovery that boots
+
+Neither probe started from `recovery`. `inspect_bootimg.py` shows the recovery image that was on the
+tablet differs from the boot-based test images (board name, header addresses, `recovery_dtbo`,
+no SEANDROIDENFORCE marker). `repack.py` accepts either as `--stock-boot`; for the `recovery`
+slot use that recovery image (`recovery.img`) so the header and `recovery_dtbo` are kept and only the
+Image changes.

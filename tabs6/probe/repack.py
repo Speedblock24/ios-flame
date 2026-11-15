@@ -35,10 +35,11 @@ def parse(img):
         die(f"unexpected header: version {hv}, page {ps}, second {ss}")
     koff = PAGE
     roff = koff + len(pad(b"\0" * ks))
-    return dict(ks=ks, rs=rs, koff=koff, roff=roff, id=img[576:608])
+    dts, dto, _ = struct.unpack_from("<IQI", img, 1632)
+    return dict(ks=ks, rs=rs, koff=koff, roff=roff, dts=dts, dto=dto, id=img[576:608])
 
 
-def boot_id(kernel, ramdisk):
+def boot_id(kernel, ramdisk, dtbo=b""):
     outs = []
     for variant in (False, True):
         h = hashlib.sha1()
@@ -46,8 +47,8 @@ def boot_id(kernel, ramdisk):
             h.update(d)
             h.update(struct.pack("<I", len(d)))
         if variant:
-            h.update(b"")
-            h.update(struct.pack("<I", 0))
+            h.update(dtbo)
+            h.update(struct.pack("<I", len(dtbo)))
         outs.append(h.digest().ljust(32, b"\0"))
     return outs
 
@@ -69,6 +70,12 @@ def main():
     hdr = parse(stock)
     kblob = stock[hdr["koff"]:hdr["koff"] + hdr["ks"]]
     ramdisk = stock[hdr["roff"]:hdr["roff"] + hdr["rs"]]
+    dtbo = b""
+    if hdr["dts"]:
+        if hdr["dto"] != hdr["roff"] + len(pad(b"\0" * hdr["rs"])):
+            die("recovery_dtbo is not right after the ramdisk; layout not supported")
+        dtbo = stock[hdr["dto"]:hdr["dto"] + hdr["dts"]]
+        print(f"keeping recovery_dtbo: {len(dtbo)} bytes")
     if kblob[:16] != MAGIC:
         die("stock kernel does not start with UNCOMPRESSED_IMG")
     ilen = struct.unpack_from("<I", kblob, 16)[0]
@@ -83,23 +90,26 @@ def main():
     new_k = MAGIC + struct.pack("<I", len(image)) + image + tail
 
     # stock marker and footer layout, to check our assumptions about it
-    rend = hdr["roff"] + len(pad(b"\0" * hdr["rs"]))
+    rend = hdr["roff"] + len(pad(b"\0" * hdr["rs"])) + (len(pad(dtbo)) if dtbo else 0)
     marker_ok = stock[rend:rend + 16] == SEANDROID
     if not marker_ok:
-        print("warning: SEANDROIDENFORCE not where expected in the stock image")
+        print("note: the stock image has no SEANDROIDENFORCE marker; not adding one")
 
     header = bytearray(stock[:PAGE])
     struct.pack_into("<I", header, 8, len(new_k))
-    ids = boot_id(kblob, ramdisk)
+    ids = boot_id(kblob, ramdisk, dtbo)
     if hdr["id"] in ids:
         print("stock id matches sha1 variant", ids.index(hdr["id"]))
-        newid = boot_id(new_k, ramdisk)[ids.index(hdr["id"])]
+        newid = boot_id(new_k, ramdisk, dtbo)[ids.index(hdr["id"])]
     else:
         print("note: stock id not reproducible; using the plain sha1 variant")
-        newid = boot_id(new_k, ramdisk)[0]
+        newid = boot_id(new_k, ramdisk, dtbo)[0]
     header[576:608] = newid
+    new_dto = PAGE + len(pad(new_k)) + len(pad(ramdisk))
+    if dtbo:
+        struct.pack_into("<Q", header, 1636, new_dto)
 
-    out = bytes(header) + pad(new_k) + pad(ramdisk)
+    out = bytes(header) + pad(new_k) + pad(ramdisk) + (pad(dtbo) if dtbo else b"")
     if marker_ok:
         out += SEANDROID
     open(a.out, "wb").write(out)
@@ -121,9 +131,13 @@ def main():
     assert h2["ks"] == len(new_k) and h2["rs"] == hdr["rs"]
     assert o[h2["koff"]:h2["koff"] + h2["ks"]] == new_k
     assert o[h2["roff"]:h2["roff"] + h2["rs"]] == ramdisk
-    assert o[:8] == stock[:8] and o[12:576] == stock[12:576] and o[608:PAGE] == stock[608:PAGE]
+    if dtbo:
+        assert h2["dts"] == len(dtbo) and h2["dto"] == new_dto
+        assert o[h2["dto"]:h2["dto"] + h2["dts"]] == dtbo
+    assert o[:8] == stock[:8] and o[12:576] == stock[12:576]
+    assert o[608:1636] == stock[608:1636] and o[1644:PAGE] == stock[1644:PAGE]
     print(f"kernel blob {len(new_k)} bytes: Image {len(image)} + {ndtb} stock FDT(s) kept ({len(tail)} bytes)")
-    print(f"ramdisk {hdr['rs']} bytes (unchanged), image {len(o)} bytes")
+    print(f"ramdisk {hdr['rs']} bytes (unchanged), recovery_dtbo {len(dtbo)} bytes, image {len(o)} bytes")
     print("sha256", hashlib.sha256(o).hexdigest())
 
 
