@@ -111,7 +111,8 @@ def main():
         if psize % PAGE or psize < len(out) + 4096 or psize > (1 << 30):
             die(f"implausible partition size {psize}")
         subprocess.run([sys.executable, a.avbtool, "add_hash_footer", "--image", a.out,
-                        "--partition_size", str(psize), "--partition_name", a.partition_name],
+                        "--partition_size", str(psize), "--partition_name", a.partition_name,
+                        "--salt", os.urandom(32).hex()],  # avbtool reads /dev/urandom otherwise: not on Windows
                        check=True)
 
     # re-read what we wrote and check it against the stock image
