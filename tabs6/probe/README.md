@@ -76,3 +76,19 @@ tablet differs from the boot-based test images (board name, header addresses, `r
 no SEANDROIDENFORCE marker). `repack.py` accepts either as `--stock-boot`; for the `recovery`
 slot use that recovery image (`recovery.img`) so the header and `recovery_dtbo` are kept and only the
 Image changes.
+
+## Third result and the timed variant
+
+The hang image built on the recovery layout (hang2), started with `reboot recovery` from a root shell,
+left the tablet frozen on the first Samsung screen (logo plus the unlocked-bootloader warning); a forced
+restart came back to the same state, and restoring the original recovery through Download mode fixed it.
+That fits "our code ran", but a loader that hangs on the image looks the same.
+
+`out/Image-delay20` writes its report, waits 20 seconds, then resets (watchdog bite, PSCI as fallback).
+A freeze of about 20 seconds followed by an Android boot means our code ran; a freeze that never ends
+means it did not. Build and package in one step:
+
+    python tabs6/probe/make_flash.py --image tabs6/probe/out/Image-delay20 --name delay20
+
+(defaults: stock layout from `~/OneDrive/Desktop/t6info/recovery.img`, output in `~/Downloads/tabs6-out`,
+`avbtool` in `~/avb`). Flash the resulting `.tar` as before, then start it with `reboot recovery`.

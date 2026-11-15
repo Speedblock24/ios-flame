@@ -27,11 +27,12 @@ and check the same key sequence boots it.
 **Update (2026-11-15):** hang image built on the recovery.img layout (hang2, with recovery_dtbo) flashed as a
 plain `.tar`; then `reboot recovery` from a root shell (not the key combo) -> the tablet **froze**, and a forced
 restart (Power + Volume Down) came back to the same frozen state. Restoring the original recovery through
-Odin Download mode (recovery-restore.tar) brought Android back. Not recorded: what the screen showed while frozen.
+Odin Download mode (recovery-restore.tar) brought Android back. The screen showed the first Samsung logo with the
+unlocked-bootloader warning while frozen (never the animated boot logo).
 Two things changed at once (layout with recovery_dtbo, and `reboot recovery` instead of keys), so which one made
 the difference is **not known**. A freeze fits "our code ran", but a loader that hangs on the image would look
-the same. **Next:** control (restored recovery + `reboot recovery` should open it), then a variant that waits a
-fixed time and resets, so a timed reboot to Android means our code ran and a freeze that never ends does not.
+the same. **Next:** control (restored recovery + `reboot recovery` should open it), then tabs6/probe/out/Image-delay20 (waits
+20 s, then resets): a timed reboot to Android means our code ran, a freeze that never ends does not.
 
 ### WiFi IN SETTINGS: wifid, en0, iOS's own DHCP (2026-10-22, 11:15) - kernels 0123/0124
 Settings -> Wi-Fi: switch on, the home network ticked, nearby networks listed (from a

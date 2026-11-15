@@ -100,8 +100,13 @@ static void delay_s(u64 s)
 		;
 }
 
+#ifndef RESET_DELAY
+#define RESET_DELAY 0		/* seconds to wait before the reset: a timed reboot proves our code ran */
+#endif
+
 static void reset(void)
 {
+	delay_s(RESET_DELAY);
 	volatile u32 *w = (volatile u32 *)WDT;
 	w[0x14 / 4] = 1;	/* BITE_TIME: one tick */
 	w[0x08 / 4] = 1;	/* EN */
