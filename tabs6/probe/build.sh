@@ -1,6 +1,6 @@
 #!/bin/bash
 # Build the Tab S6 stage-0 probe: out/Image (reset at once), out/Image-hang (spins forever),
-# out/Image-delay20 (waits 20 s, then resets).
+# out/Image-delay20 and out/Image-delay50 (wait 20 s / 50 s, then reset).
 # Needs clang + ld.lld + llvm-objcopy (+ llvm-readelf/llvm-nm for the checks).
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -36,3 +36,4 @@ build() {
 build probe "" Image
 build probe-hang "-DPROBE_HANG" Image-hang
 build probe-delay20 "-DRESET_DELAY=20" Image-delay20
+build probe-delay50 "-DRESET_DELAY=50" Image-delay50

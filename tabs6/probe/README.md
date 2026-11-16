@@ -92,3 +92,10 @@ means it did not. Build and package in one step:
 
 (defaults: stock layout from `~/OneDrive/Desktop/t6info/recovery.img`, output in `~/Downloads/tabs6-out`,
 `avbtool` in `~/avb`). Flash the resulting `.tar` as before, then start it with `reboot recovery`.
+
+## Is the reset ours? (delay50)
+
+A watchdog left running by the loader could also reset the tablet after a fixed time, so a 20 s reset is not
+proof that our delay did it. `out/Image-delay50` waits 50 s instead: a reset near 50 s means our code counts the
+time; a reset at about the same 20-30 s as before means a watchdog. Time it from the moment the Samsung screen
+appears. Start it with the key combo, not `reboot recovery` (that leaves a request that loops).

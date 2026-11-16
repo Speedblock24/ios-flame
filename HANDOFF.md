@@ -39,8 +39,11 @@ plain `.tar`; control first: with the original recovery restored, `reboot recove
 `reboot recovery` with the probe in the slot: first Samsung screen (about 10-20 s after the command), black at
 about 40 s after the command, reboot, and the same again in a **loop**. A forced restart does not leave the loop
 (seen earlier with the hang image). Left through Download mode by flashing recovery-restore.tar; Android back.
-- **Read as:** the reset at roughly 20 s after the Samsung screen fits our code running and counting 20 s; the hang
-  image sat frozen for minutes with no reset, so it is not the loader's own watchdog. Not measured with a stopwatch.
+- **Read as:** a reset about 20 s after the Samsung screen fits our code running and counting 20 s, but it is **not
+  proven**: the hackios porting guide (step 1) says some loaders hand over with a watchdog still running, which would
+  also reset the phone after a fixed time. The hang image looked frozen for longer than that, but the freeze was not
+  timed, and neither was the 20 s run. **Test:** tabs6/probe/out/Image-delay50 (waits 50 s): a reset near 50 s means our
+  code counts the time, a reset at the same ~20-30 s again means a watchdog.
 - **Guess (untested):** the loop comes from a "boot recovery" request that survives resets (probably a BCB command in
   `misc`, which the real recovery clears when it exits); a key-combo start would not set it. Not checked: `misc`
   was not read, and the report in ramoops was not read (the later boots overwrite it; this kernel's dmesg showed no ramoops).
